@@ -1,77 +1,123 @@
 # Stimalyzer
 
-Streamlit application for reviewing and annotating motion captured by two x-IMU3 sensors. It synchronizes recordings from the wrist and lower back, highlights high-activity intervals and helps an annotator export consistent labels for a later machine-learning workflow.
+Prototyp badawczy aplikacji Streamlit do analizy ruchu rejestrowanego przez dwa
+czujniki x-IMU3: na nadgarstku i w odcinku lędźwiowym. Projekt wspiera
+synchronizację nagrań, ręczne etykietowanie czynności oraz eksperymenty z
+modelami Human Activity Recognition (HAR).
 
 > [!IMPORTANT]
-> Stimalyzer is a research prototype. Its suggestions indicate dynamic movement only; they do not identify stimming and must not be used to diagnose autism spectrum disorder.
+> Projekt służy wyłącznie do badań i wspomagania analizy ruchu. Wynik modelu nie
+> jest diagnozą, opinią kliniczną ani narzędziem do rozpoznawania ASD.
 
-## Features
+![Widok aplikacji Stimalyzer](docs/images/stimalyzer-app.png)
 
-- synchronized analysis of wrist and lower-back `Inertial.csv` recordings;
-- interactive accelerometer, gyroscope and combined-motion plots;
-- adjustable suggestions for intervals worth reviewing;
-- manual annotation with validation and neutral-gap completion;
-- export of an `annotations.csv` file;
-- scripts for converting labelled sessions into window-level training data;
-- an example notebook for training and evaluating a Random Forest model.
+## Co potrafi aplikacja
 
-## Tech stack
+- przyjmuje dwa pliki `Inertial.csv` z tego samego eksportu x-IMU3;
+- synchronizuje nadgarstek i lędźwie na podstawie tego samego ruchu, np. skoku;
+- wyświetla osobno osie X/Y/Z akcelerometru i żyroskopu dla obu czujników;
+- pokazuje wspólny wskaźnik dynamiki ruchu oraz proponowane epizody do sprawdzenia;
+- pozwala ręcznie opisać przedziały czasu etykietami ruchu;
+- eksportuje etykiety do formatu `annotations.csv` przydatnego do uczenia modeli.
 
-Python, Streamlit, pandas, NumPy, Plotly and scikit-learn.
+## Uruchomienie
 
-## Getting started
-
-Python 3.11 or newer is recommended.
+Wymagany jest Python 3.12 lub nowszy.
 
 ```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
+python -m venv .ml-venv
+.\.ml-venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Upload two `Inertial.csv` files from the same recording session: one from the wrist and one from the lower back. If the sensors were not started simultaneously, enter the timestamp of the same visible movement in both recordings to align them.
+W aplikacji wybierz dwa pliki `Inertial.csv`: jeden z czujnika na nadgarstku,
+drugi z czujnika w okolicy lędźwiowej. Eksport x-IMU3 zawiera wiele CSV, ale do
+obecnego modelu używany jest właśnie `Inertial.csv`.
 
-## Preparing a training dataset
-
-Copy the example files before entering local paths or research annotations:
-
-```powershell
-Copy-Item data/manifest_template.csv data/manifest.csv
-Copy-Item data/annotations_template.csv data/annotations.csv
-```
-
-Each manifest row describes one paired-sensor session. Each annotation row describes one labelled time interval. When the whole session has been reviewed, set `fully_annotated` to `TRUE`; only then can unlabelled windows safely be treated as background.
-
-Build the window-level feature table with:
-
-```powershell
-python scripts/build_training_dataset.py `
-  --manifest data/manifest.csv `
-  --annotations data/annotations.csv `
-  --output data/training_windows.csv
-```
-
-Split training and test sets by `participant_id`, never by individual windows, to prevent data from the same person leaking into both sets.
-
-## Project structure
+Jeżeli urządzenia zaczęły rejestrację w różnym momencie, znajdź ten sam skok
+lub inny wyraźny ruch na obu wykresach i wpisz jego czas dla każdego czujnika.
+Aplikacja oblicza przesunięcie:
 
 ```text
-app.py                     Streamlit interface
-scripts/imu_pipeline.py    signal loading, synchronization and detection
-scripts/build_training_dataset.py
-                           feature extraction for model training
-notebooks/                 model-training walkthrough
-data/*_template.csv        safe input-file templates
-style.css                  application styling
+offset lędźwi = czas skoku na nadgarstku − czas skoku na lędźwiach
 ```
 
-Raw sensor recordings, participant annotations, trained models, reports and local Python environments are intentionally excluded from version control.
+Następnie buduje wspólną oś czasu, na której wykonuje się etykietowanie.
 
-## Privacy and responsible use
+## Dane do uczenia
 
-Motion traces and annotations may be sensitive research data. Keep participant identifiers pseudonymous, obtain appropriate consent, and do not commit local datasets or exported annotations to a public repository.
+Jedna sesja oznacza parę plików: `wrist/Inertial.csv` i `waist/Inertial.csv`.
+Plik `data/manifest.csv` opisuje pary plików, uczestnika oraz przesunięcie
+czasowe lędźwi. Plik `data/annotations.csv` opisuje przedziały:
 
-## License
+```text
+session_id,start_s,end_s,label,annotator,comment
+SES-001,29,89,x_flapping,IM,pozycja stojąca
+```
 
-No open-source license has been selected yet. All rights are reserved by the author.
+Etykiety czasowe zawsze odnoszą się do końcowej, zsynchronizowanej osi czasu
+w aplikacji. Jeżeli cała sesja została przejrzana, w manifeście ustaw
+`fully_annotated` na `TRUE`; wtedy nieopisane okna są traktowane jako `background`.
+
+## Notebook eksperymentalny
+
+Główny notebook to
+[`notebooks/training_modelu_krok_po_kroku.ipynb`](notebooks/training_modelu_krok_po_kroku.ipynb).
+Uruchamiaj jego komórki od góry do dołu. Notebook:
+
+1. sprawdza manifest i etykiety;
+2. tworzy 3-sekundowe okna z krokiem 1 sekundy;
+3. wykonuje walidację `Leave-One-Participant-Out` — jedna osoba trafia tylko do testu;
+4. porównuje modele klasyczne na cechach;
+5. tworzy sekwencje surowych danych `okno × 300 próbek × 12 kanałów` dla 1D CNN i TCN;
+6. zapisuje raporty porównawcze w katalogu `reports/`.
+
+Do notebooka wybierz w VS Code kernel:
+
+```text
+.ml-venv\Scripts\python.exe
+```
+
+## Wyniki pierwszego eksperymentu
+
+Wyniki dotyczą 10 360 okien pochodzących od 15 uczestników. Wszystkie modele
+oceniono tą samą walidacją po osobach, dlatego `macro F1` jest główną miarą
+porównania.
+
+| Model | Accuracy | Macro F1 |
+|---|---:|---:|
+| Extra Trees | 77,3% | 73,1% |
+| Random Forest | 76,9% | 72,9% |
+| SVM RBF | 75,8% | 72,0% |
+| Logistic Regression | 75,3% | 71,3% |
+| 1D CNN | 74,4% | 68,3% |
+| TCN | 74,1% | 67,1% |
+
+Najlepszy wynik uzyskał **Extra Trees**. Dla aktualnego, niewielkiego zbioru
+modele klasyczne oparte na cechach przewyższyły modele głębokie uczone na
+surowych przebiegach. Wyniki szczegółowe znajdują się po lokalnym uruchomieniu
+notebooka w `reports/all_model_comparison.csv`.
+
+## Struktura projektu
+
+```text
+app.py                              interfejs Streamlit
+scripts/imu_pipeline.py             wczytywanie, synchronizacja i łączenie sygnałów
+scripts/build_training_dataset.py   budowa cech dla modeli klasycznych
+notebooks/                          notebooki z eksperymentami ML
+docs/images/                        zrzuty ekranu aplikacji
+data/                               lokalne dane, manifest i etykiety
+models/                             lokalnie wytrenowane modele
+reports/                            lokalne raporty eksperymentów
+```
+
+## Prywatność i ograniczenia
+
+Surowe nagrania, etykiety, modele i raporty są wykluczone z repozytorium,
+ponieważ mogą zawierać dane badawcze. Używaj pseudonimów uczestników,
+zadbaj o zgodę na udział w badaniu i nie publikuj identyfikowalnych danych.
+
+## Licencja
+
+Nie wybrano jeszcze licencji open-source. Wszelkie prawa zastrzeżone.

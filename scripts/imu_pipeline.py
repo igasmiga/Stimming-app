@@ -24,6 +24,10 @@ ACC_COLUMNS = [
 GYRO_COLUMNS = ["Gyroscope X (deg/s)", "Gyroscope Y (deg/s)", "Gyroscope Z (deg/s)"]
 REQUIRED_COLUMNS = [TIMESTAMP, *ACC_COLUMNS, *GYRO_COLUMNS]
 
+# Nazwy używane w modelach sekwencyjnych (1D CNN i TCN). Każdy model dostaje
+# 12 kanałów: acc XYZ + gyro XYZ z nadgarstka i z odcinka lędźwiowego.
+RAW_SIGNAL_COLUMNS = [*ACC_COLUMNS, *GYRO_COLUMNS]
+
 
 def read_ximu_csv(source: BinaryIO | bytes) -> pd.DataFrame:
     """Wczytuje CSV x-IMU3 i zwraca dane w jednej, sprawdzonej postaci."""
@@ -117,6 +121,53 @@ def fuse_sensor_features(
             "lumbar_acc_variability_g", "lumbar_gyro_mean_dps",
         ]
     )
+    fused.attrs["shared_start_s"] = shared_start
+    fused.attrs["lumbar_time_offset_s"] = lumbar_time_offset_s
+    return fused
+
+
+def fuse_raw_sensor_signals(
+    wrist: pd.DataFrame, lumbar: pd.DataFrame, lumbar_time_offset_s: float = 0.0
+) -> pd.DataFrame:
+    """Synchronizuje surowe kanały IMU obu czujników na wspólnej osi czasu.
+
+    Jest przeznaczone dla modeli sekwencyjnych. Wynik ma 12 kanałów:
+    przyspieszenie i żyroskop XYZ z nadgarstka oraz z lędźwi. Tak samo jak
+    ``fuse_sensor_features`` odrzuca fragment nagrania, w którym nie ma danych
+    jednego z czujników, a następnie ustawia wspólny początek na 0 s.
+    """
+    wrist_indexed = wrist.set_index("time_s")
+    lumbar_shifted = lumbar.copy()
+    lumbar_shifted["time_s"] += lumbar_time_offset_s
+    lumbar_indexed = lumbar_shifted.set_index("time_s")
+
+    shared_start = max(float(wrist_indexed.index.min()), float(lumbar_indexed.index.min()))
+    shared_end = min(float(wrist_indexed.index.max()), float(lumbar_indexed.index.max()))
+    if shared_end <= shared_start:
+        raise ValueError("Po synchronizacji pliki nie mają wspólnego zakresu czasu.")
+
+    rate = min(sampling_rate_hz(wrist), sampling_rate_hz(lumbar))
+    common_time = np.arange(shared_start, shared_end, 1 / rate)
+    fused = pd.DataFrame({"time_s": common_time - shared_start})
+
+    for prefix, frame in [("wrist", wrist_indexed), ("lumbar", lumbar_indexed)]:
+        interpolated = (
+            frame[RAW_SIGNAL_COLUMNS]
+            .reindex(frame.index.union(common_time))
+            .interpolate()
+            .reindex(common_time)
+        )
+        for column in RAW_SIGNAL_COLUMNS:
+            short_name = (
+                column.replace("Accelerometer ", "acc_")
+                .replace("Gyroscope ", "gyro_")
+                .replace(" (g)", "")
+                .replace(" (deg/s)", "")
+                .replace(" ", "_")
+                .lower()
+            )
+            fused[f"{prefix}_{short_name}"] = interpolated[column].to_numpy()
+
     fused.attrs["shared_start_s"] = shared_start
     fused.attrs["lumbar_time_offset_s"] = lumbar_time_offset_s
     return fused
