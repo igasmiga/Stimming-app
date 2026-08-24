@@ -9,16 +9,48 @@ modelami Human Activity Recognition (HAR).
 > Projekt służy wyłącznie do badań i wspomagania analizy ruchu. Wynik modelu nie
 > jest diagnozą, opinią kliniczną ani narzędziem do rozpoznawania ASD.
 
-![Widok aplikacji Stimalyzer](docs/images/stimalyzer-app.png)
-
 ## Co potrafi aplikacja
 
-- przyjmuje dwa pliki `Inertial.csv` z tego samego eksportu x-IMU3;
-- synchronizuje nadgarstek i lędźwie na podstawie tego samego ruchu, np. skoku;
+- przyjmuje dwa pliki `.ximu3`, foldery ZIP z eksportu lub `Inertial.csv`;
+- automatycznie konwertuje `.ximu3` oficjalną biblioteką x-io i wybiera `Inertial.csv`;
+- automatycznie synchronizuje nadgarstek i lędźwie przez dopasowanie wspólnego ruchu; ręczna korekta pozostaje dostępna;
 - wyświetla osobno osie X/Y/Z akcelerometru i żyroskopu dla obu czujników;
 - pokazuje wspólny wskaźnik dynamiki ruchu oraz proponowane epizody do sprawdzenia;
 - pozwala ręcznie opisać przedziały czasu etykietami ruchu;
 - eksportuje etykiety do formatu `annotations.csv` przydatnego do uczenia modeli.
+
+## Jak wygląda praca z aplikacją
+
+### 1. Wczytanie wspólnego zapisu
+
+Formularz przyjmuje nagrania z dwóch czujników x-IMU3: umieszczonego na
+nadgarstku oraz w okolicy lędźwiowej. Użytkownik podaje datę i godzinę
+rozpoczęcia pomiaru oraz opcjonalny, pseudonimowy identyfikator osoby. Aplikacja
+obsługuje pliki `.ximu3`, archiwa ZIP i gotowe `Inertial.csv`, a następnie
+automatycznie synchronizuje oba sygnały. W razie potrzeby przesunięcie można
+skorygować ręcznie w ustawieniach zaawansowanych.
+
+![Formularz wczytywania i synchronizacji zapisów z dwóch czujników](docs/screenshots/01-upload-session.png)
+
+### 2. Raport z analizy
+
+Po przetworzeniu danych aplikacja przedstawia najważniejsze podsumowania:
+łączny czas zapisu, czas i udział ruchów powtarzalnych oraz liczbę rozpoznanych
+epizodów. Wykres słupkowy porównuje czas poszczególnych aktywności, wykres
+pierścieniowy pokazuje ich udział w całym zapisie, a oś dnia pozwala sprawdzić,
+kiedy występowały konkretne ruchy, spokojna aktywność lub niepewne predykcje.
+
+![Raport z podsumowaniem aktywności, wykresami i osią czasu](docs/screenshots/02-analysis-report.png)
+
+### 3. Szczegóły rozpoznanych epizodów
+
+Każdy wykryty okres ruchu jest przedstawiony w tabeli wraz z godziną
+rozpoczęcia i zakończenia, przewidywaną aktywnością, czasem trwania oraz
+pewnością modelu. Dzięki temu wyniki można łatwo zestawić z obserwacją i osią
+dnia. Pole notatki pozwala dodać kontekst opiekuna lub obserwatora do raportu,
+nie wpływając przy tym na predykcje modelu.
+
+![Tabela rozpoznanych okresów ruchów powtarzalnych i notatka obserwatora](docs/screenshots/03-detected-periods.png)
 
 ## Uruchomienie
 
@@ -31,13 +63,14 @@ python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-W aplikacji wybierz dwa pliki `Inertial.csv`: jeden z czujnika na nadgarstku,
-drugi z czujnika w okolicy lędźwiowej. Eksport x-IMU3 zawiera wiele CSV, ale do
-obecnego modelu używany jest właśnie `Inertial.csv`.
+W aplikacji wybierz dwa pliki: jeden z czujnika na nadgarstku, drugi z czujnika
+w okolicy lędźwiowej. Możesz przesłać bezpośrednio binarne pliki `.ximu3`, ZIP
+z ich eksportem albo gotowe `Inertial.csv`. Eksport x-IMU3 zawiera wiele CSV,
+ale do modelu używany jest wyłącznie `Inertial.csv` (akcelerometr i żyroskop).
 
-Jeżeli urządzenia zaczęły rejestrację w różnym momencie, znajdź ten sam skok
-lub inny wyraźny ruch na obu wykresach i wpisz jego czas dla każdego czujnika.
-Aplikacja oblicza przesunięcie:
+Po wgraniu danych aplikacja najpierw automatycznie szacuje przesunięcie na
+podstawie wspólnego ruchu obu czujników. Możesz je sprawdzić w raporcie. Jeżeli
+wynik nie odpowiada wykresom, w sekcji „Zaawansowane” wpisz własne przesunięcie:
 
 ```text
 offset lędźwi = czas skoku na nadgarstku − czas skoku na lędźwiach
@@ -106,7 +139,7 @@ app.py                              interfejs Streamlit
 scripts/imu_pipeline.py             wczytywanie, synchronizacja i łączenie sygnałów
 scripts/build_training_dataset.py   budowa cech dla modeli klasycznych
 notebooks/                          notebooki z eksperymentami ML
-docs/images/                        zrzuty ekranu aplikacji
+docs/screenshots/                   zrzuty ekranu aplikacji użyte w README
 data/                               lokalne dane, manifest i etykiety
 models/                             lokalnie wytrenowane modele
 reports/                            lokalne raporty eksperymentów
