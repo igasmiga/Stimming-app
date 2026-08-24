@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.venv/
+venv/
+.ml-venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Streamlit secrets and local configuration
+.streamlit/secrets.toml
+.env
+.env.*
+
+# Research data and generated artefacts
+data/raw/
+data/manifest.csv
+data/annotations.csv
+data/training_windows.csv
+models/
+reports/

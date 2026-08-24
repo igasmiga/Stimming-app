@@ -1,0 +1,2 @@
+participant_id,session_id,wrist_path,lumbar_path,lumbar_time_offset_s,fully_annotated
+P-001,SES-001,data/raw/SES-001/wrist/Inertial.csv,data/raw/SES-001/waist/Inertial.csv,0.0,FALSE

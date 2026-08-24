@@ -1,0 +1,75 @@
+/* Ukrywanie elementów interfejsu Streamlit */
+[data-testid="stSidebar"], [data-testid="stSidebarNav"] { display: none !important; }
+a.header-anchor { display: none !important; }
+[data-testid="stHeaderActionElements"] { display: none !important; visibility: hidden !important; }
+
+/* Globalne poprawki layoutu i tło aplikacji */
+.stApp {
+    background-color: #ffffff; /* Delikatne tło */
+}
+
+.main .block-container { 
+    padding-top: 2rem; 
+    max-width: 95%; 
+}
+
+h1, h2, h3, h4, h5, h6 { pointer-events: none !important; }
+
+/* NAGŁÓWEK: DUŻE LOGO I TEKST (Zachowane z poprzedniej poprawki) */
+.header-container {
+    display: flex;
+    align-items: center; 
+    gap: 30px;
+    padding: 20px 0;
+    margin-bottom: 30px;
+}
+
+.header-logo {
+    height: 120px; 
+    width: auto;
+    object-fit: contain;
+    display: block;
+    padding: 5px; /* Margines bezpieczeństwa */
+}
+
+.header-text-block {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.header-title {
+    margin: 0 !important;
+    font-size: 3.5rem !important;
+    font-weight: 800 !important;
+    color: #1e293b;
+    line-height: 1.1 !important;
+}
+
+.header-subtitle {
+    margin: 0 !important;
+    color: #64748b;
+    font-size: 1.5rem;
+    line-height: 1.2 !important;
+}
+
+/* KARTY METRYK (Białe karty) */
+.metric-card {
+    background-color: #ffffff;
+    border: 1px solid #eef2f6;
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.metric-value {
+    font-size: 2.8rem;
+    font-weight: 800;
+    margin: 0;
+}
+
+/* Kolory specyficzne dla danych */
+.blue-text { color: #1f77b4; }   /* Niebieski - Czas */
+.orange-text { color: #ff7f0e; } /* Pomarańczowy - Zdarzenia */
+.red-text { color: #d62728; }    /* Czerwony - Intensywność */
